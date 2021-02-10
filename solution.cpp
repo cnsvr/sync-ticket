@@ -41,18 +41,6 @@ struct Teller{
 } typedef Teller;
 
 
-
-
-static void display_sched_attr(int policy, struct sched_param *param)
-{
-    printf("    policy=%s, priority=%d\n",
-            (policy == SCHED_FIFO)  ? "SCHED_FIFO" :
-            (policy == SCHED_RR)    ? "SCHED_RR" :
-            (policy == SCHED_OTHER) ? "SCHED_OTHER" :
-            "???",
-            param->sched_priority);
-}
-
 using namespace std;
 string inputPath, outputPath;
 pthread_t tellers[NUM_OF_TELLER]; // array of teller threads
@@ -190,6 +178,12 @@ void *tellerRunner(void *num){
     int status = tellersOfTheatre[number].status;
     while(status == idle) {
       status = tellersOfTheatre[number].status;
+      if (soldTicket == clientNumber){
+        break;
+      }
+    }
+    if (soldTicket == clientNumber){
+        break;
     }
     int clientNum = tellersOfTheatre[number].clientNum; // client at service of Teller
     // printf("clientNum %d and Teller %s \n", clientNum,tellerName.c_str());
@@ -203,18 +197,20 @@ void *tellerRunner(void *num){
     m2.unlock();
     if (findSeatNumber != -1) {
       // Requested ticket is given the client
-      msleep(clientsOfTheatre[clientNum - 1].serviceTime);
-      printf("ClientNum %d\n",clientNum);
+      msleep(clientsOfTheatre[clientNum - 1].serviceTime*10);
+      // printf("ClientNum %d\n",clientNum);
       printf("%s requests seat %d, reserves seat %d. Signed by Teller %s.\n", clientsOfTheatre[clientNum - 1].name.c_str(), requestedSeat, findSeatNumber, tellerName.c_str());
       // tellersOfTheatre[number].status = idle;
     } else {
-      msleep(clientsOfTheatre[clientNum - 1].serviceTime);
+      msleep(clientsOfTheatre[clientNum - 1].serviceTime*10);
       printf("%s requests seat %d, reserves None. Signed by Teller %s.\n", clientsOfTheatre[clientNum - 1].name.c_str(), requestedSeat, tellerName.c_str());
       // tellersOfTheatre[number].status = idle;
     }
     tellersOfTheatre[number].status = idle;
 
+    // printf("%d %d %d\n",findSeatNumber, soldTicket, clientNumber);
     if (findSeatNumber == -1 || soldTicket == clientNumber) { // No more ticket left.
+      // printf("%s","Break enter");
       break;
     }
   }
@@ -227,7 +223,7 @@ void *clientRunner(void *clientNum) {
   // printf("ClientNumber %d in clientRunner", clientNumber);
   
   // Sleeps until arrival time.
-  msleep(clientsOfTheatre[clientNumber].arrivalTime);
+  msleep(clientsOfTheatre[clientNumber].arrivalTime*10);
   // printf("Client%d is arrived\n", clientsOfTheatre[clientNumber].id);
   
   int idleTeller = 0;
@@ -245,7 +241,7 @@ void *clientRunner(void *clientNum) {
     }
   }
   m1.unlock();
-  msleep(clientsOfTheatre[clientNumber].serviceTime);
+  msleep(clientsOfTheatre[clientNumber].serviceTime*10);
   
   // printf("%s is finished\n",clientsOfTheatre[clientNumber].name.c_str());
   pthread_exit(NULL);
@@ -266,14 +262,21 @@ int findIdleTeller() {
 int findSeat(int requestedSeat) {
   int emptySeatNumber = -1;
   
+  /*
   if (theatreSeatStatus[requestedSeat - 1] == 0) {  // Checks if requested seat is empty.
     theatreSeatStatus[requestedSeat - 1] = 1;  // it is reserved.
     soldTicket++;
     return requestedSeat;
   }
+  */
 
+  if (theater == "OdaTiyatrosu") { // OdaTiyatrosu, UskudarStudyoSahne, and KucukSahne
+    if (theatreSeatStatus[requestedSeat - 1] == 0 && requestedSeat <= ODA_TIYATROSU) {  // Checks if requested seat is empty.
+      theatreSeatStatus[requestedSeat - 1] = 1;  // it is reserved.
+      soldTicket++;
+      return requestedSeat;
+    }
 
-  if (theater.compare("OdaTiyatrosu")) { // OdaTiyatrosu, UskudarStudyoSahne, and KucukSahne
     for (int i = 0; i < ODA_TIYATROSU; i++)
     {
       if(theatreSeatStatus[i] == 0) { // checks if it is empty;
@@ -284,7 +287,13 @@ int findSeat(int requestedSeat) {
         break;
       }
     }
-  } else if(theater.compare("UskudarStudyoSahne")) {
+  } else if(theater == "UskudarStudyoSahne") {
+    if (theatreSeatStatus[requestedSeat - 1] == 0 && requestedSeat <= USKUDAR_STUDYO_SAHNE) {  // Checks if requested seat is empty.
+      theatreSeatStatus[requestedSeat - 1] = 1;  // it is reserved.
+      soldTicket++;
+      return requestedSeat;
+    }
+
     for (int i = 0; i < USKUDAR_STUDYO_SAHNE; i++)
     {
       if(theatreSeatStatus[i] == 0) { // checks if it is empty;
@@ -295,6 +304,13 @@ int findSeat(int requestedSeat) {
       }
     }
   } else {
+
+   if (theatreSeatStatus[requestedSeat - 1] == 0 && requestedSeat <= KUCUK_SAHNE) {  // Checks if requested seat is empty.
+      theatreSeatStatus[requestedSeat - 1] = 1;  // it is reserved.
+      soldTicket++;
+      return requestedSeat;
+    }
+
     for (int i = 0; i < KUCUK_SAHNE; i++)
     {
       if(theatreSeatStatus[i] == 0) { // checks if it is empty;
