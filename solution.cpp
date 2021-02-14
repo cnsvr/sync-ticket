@@ -15,17 +15,20 @@
 #define KUCUK_SAHNE 200 
 
 
+// Status of Teller
 enum TellerStatus{
   idle,
   busy
 };
 
 
-// Getting the mutex
+// Mutexes
 std::mutex m1;
 std::mutex m2;
 std::mutex m3;
 
+
+// Structure of Client
 struct Client{
   int id;
   std::string name;
@@ -35,6 +38,8 @@ struct Client{
   int status;
 } typedef Client;
 
+
+// Structure OF Teller
 struct Teller{
   int id;
   int status;
@@ -43,24 +48,36 @@ struct Teller{
 
 
 using namespace std;
-string inputPath, outputPath;
-pthread_t tellers[NUM_OF_TELLER]; // array of teller threads
-pthread_t clients[MAX_OF_CLIENT]; // array of client threads
-Client clientsOfTheatre[MAX_OF_CLIENT];
-Teller tellersOfTheatre[NUM_OF_TELLER];
-int theatreSeatStatus[KUCUK_SAHNE] = {0}; // All seats are empty.
-string theater, client, clientNum;
-int clientNumber;
-int soldTicket = 0;
-int currentTheaterCapacity;
-int numberOfDoneClient = 0;
+string inputPath, outputPath;             // path of input and output file
+pthread_t tellers[NUM_OF_TELLER];         // array of teller threads
+pthread_t clients[MAX_OF_CLIENT];         // array of client threads
+Client clientsOfTheatre[MAX_OF_CLIENT];   // array of Client structure in the theater
+Teller tellersOfTheatre[NUM_OF_TELLER];   // array of Teller structure in the theater
+int theatreSeatStatus[KUCUK_SAHNE] = {0}; // All seats are empty and its size is biggest size(KUCUK_SAHNE)
+string theater, client, clientNum;        // name of theater, name and number of client
+int clientNumber;                         // number of client coming the theater
+int soldTicket = 0;                       // number of sold tickets
+int currentTheaterCapacity;               // capacity of theater (60, 80 ,200)
+int numberOfDoneClient = 0;               // number of clients whose ticket process are handled so far.
 
+
+// Splits the string with given delimeter and returns the vector.
 vector<string> split(const string str, char delim);
 
+
+// Runs in the teller thread.
 void *tellerRunner(void *num);
+
+// Runs in the client thread.
 void *clientRunner(void *num);
+
+// Write the message to output file. 
 void writeFile(string message);
+
+// Finds the idle teller 
 int findIdleTeller();
+
+// Find the empty seat.
 int findSeat(int requestedSeat);
 
 // Sleep thread in millisecond. Source: https://stackoverflow.com/a/1157217
@@ -110,6 +127,8 @@ int main(int argc, char *argv[]){
       clientsOfTheatre[i].requestedSeat = stoi(clientInfo[3]);
     }
 
+
+    // Initialize the currentTheaterCapacity.
     if(theater == "OdaTiyatrosu") {
       currentTheaterCapacity = 60;
     } else if (theater == "UskudarStudyoSahne") {
@@ -122,17 +141,7 @@ int main(int argc, char *argv[]){
     return 0;
   }
 
-  // writeFile("Welcome to the Sync-Ticket!");
-
-  /*
-  pthread_attr_init(&attr);
-
-  ret = pthread_attr_setschedpolicy(&attr, SCHED_FIFO);
-  if (ret != 0){
-    printf("Unable to set policy: %d\n", ret);
-  }
-  */
-
+  writeFile("Welcome to the Sync-Ticket!\n");
   
   // Creating teller threads
   int tellersID[NUM_OF_TELLER];
@@ -153,7 +162,6 @@ int main(int argc, char *argv[]){
     pthread_create(&clients[i], NULL, clientRunner, (int *)(clientsID + i));
   }
 
-
   // Joining all thread to be ready for terminating program.
   for (int i = 0; i < clientNumber; i++)
   {
@@ -165,68 +173,71 @@ int main(int argc, char *argv[]){
     pthread_join(tellers[i],NULL);
   }
   
-  // writeFile("All clients received service.");
+  writeFile("All clients received service.");
+  
   return 0;
   
 }
 
 
 
-
+// Runs in the teller thread.
 void *tellerRunner(void *num){
-  int number = *(int *) num;
+  
+  int number = *(int *) num;    // Teller number.
   string tellerName = tellersOfTheatre[number].id == 1  ? "A" :
                       tellersOfTheatre[number].id == 2  ? "B" :
                       tellersOfTheatre[number].id == 3  ? "C" :
                       "unknown";
 
-  // writeFile("Teller " + tellerName + " has arrived.\n");
-  // writeFile(("Teller %s has arrived.\n", tellerName.c_str()));
-  printf("Teller %s has arrived.\n", tellerName.c_str());
-  // TODO: Waits until the client is in the queue
+  writeFile("Teller " + tellerName + " has arrived.\n");
 
-  
+
   while (1) {
 
-    // Waits if status is idle
+    // Waits if status of teller is idle
     int status = tellersOfTheatre[number].status;
     while(status == idle) {
       status = tellersOfTheatre[number].status;
-      if (soldTicket == currentTheaterCapacity){
+      
+      /* 
+        Breaks when sold tickets equals capacity of theater or 
+        clients came to the theater equals the number of clients whose ticket process are handled so far.
+      */
+      if (soldTicket == currentTheaterCapacity || clientNumber == numberOfDoneClient){
         break;
       }
     }
+    
+    // If theater is busy, it will deal with the client.
     if (status != idle){
 
       int clientNum = tellersOfTheatre[number].clientNum; // client at service of Teller
-      // printf("clientNum %d and Teller %s \n", clientNum,tellerName.c_str());
       int requestedSeat = clientsOfTheatre[clientNum - 1].requestedSeat; // requested seat number
-      // printf("Teller %s is busy now for %s\n", tellerName.c_str(), clientsOfTheatre[clientNum - 1].name.c_str());
-      // TODO: Check if request seat is empty or find possible empty seat
       
-      // Two teller can look at empty seat at the same time, so lock this section.
+      // Two teller can look at empty seat at the same time, so lock this section. (CRITICAL SECTION)
       m2.lock();
-      int findSeatNumber = findSeat(requestedSeat);
+      int findSeatNumber = findSeat(requestedSeat); // finds the empty seat number.
       m2.unlock();
+
+      // If teller can find the empty seat, it will give the seat to the client.
       if (findSeatNumber != -1) {
         // Requested ticket is given the client
         msleep(clientsOfTheatre[clientNum - 1].serviceTime*10);
-        // printf("ClientNum %d\n",clientNum);
-        // writeFile(clientsOfTheatre[clientNum - 1].name + " requests seat " + to_string(requestedSeat) + ", reserves seat " + to_string(findSeatNumber) + ". Signed by Teller " + tellerName +".\n");
-        printf("%s requests seat %d, reserves seat %d. Signed by Teller %s.\n", clientsOfTheatre[clientNum - 1].name.c_str(), requestedSeat, findSeatNumber, tellerName.c_str());
-        // tellersOfTheatre[number].status = idle;
+        writeFile(clientsOfTheatre[clientNum - 1].name + " requests seat " + to_string(requestedSeat) + ", reserves seat " + to_string(findSeatNumber) + ". Signed by Teller " + tellerName +".\n");
+
       } else {
+        // requestedSeat and any empty seat is not found, so teller couldn't give the any seat to the client.
         msleep(clientsOfTheatre[clientNum - 1].serviceTime*10);
-        // writeFile(clientsOfTheatre[clientNum - 1].name + " requests seat" + to_string(requestedSeat) + ", reserves None. Signed by Teller" + tellerName + ".\n");
-        printf("%s requests seat %d, reserves None. Signed by Teller %s.\n", clientsOfTheatre[clientNum - 1].name.c_str(), requestedSeat, tellerName.c_str());
-        // tellersOfTheatre[number].status = idle;
+        writeFile(clientsOfTheatre[clientNum - 1].name + " requests seat " + to_string(requestedSeat) + ", reserves None. Signed by Teller " + tellerName + ".\n");
       }
+
+      // Change the status of teller as IDLE after process is finished.
       tellersOfTheatre[number].status = idle;
     }
-    // printf("sold ticket %d\n", soldTicket );
 
-    // printf("%d %d %d\n",findSeatNumber, soldTicket, clientNumber);
-    if (clientNumber == numberOfDoneClient) { // No more ticket left.
+    // If all clients' processes are done, we can terminate the teller thread.
+    if (clientNumber == numberOfDoneClient) { 
       // printf("%s","Break enter");
       break;
     }
@@ -235,37 +246,38 @@ void *tellerRunner(void *num){
   pthread_exit(NULL);
 }
 
+
+// Runs in the client thread.
 void *clientRunner(void *clientNum) {
-  int clientNumber = *(int *) clientNum;
-  // printf("ClientNumber %d in clientRunner", clientNumber);
+  int clientNumber = *(int *) clientNum;    // Client number.
   
   // Sleeps until arrival time.
   msleep(clientsOfTheatre[clientNumber].arrivalTime*10);
-  // printf("Client%d is arrived\n", clientsOfTheatre[clientNumber].id);
   
   int idleTeller = 0;
+  /* 
+    Check which teller is idle, change the status as busy and lock the until the process is finished
+    Returns same number for two threads so while looking who's idle, locks this section. (CRITICAL SECTION)
+  */
   m1.lock();
   while (idleTeller == 0) {
-    // Check which teller is idle, change the status as busy and lock the until the process is finished
-    // Returns same number for two threads so while looking who's idle, locks this section.
+    
     idleTeller = findIdleTeller();
-    // printf("Client%d, idleTeller %d\n", clientsOfTheatre[clientNumber].id,idleTeller);
     if (idleTeller){
-      // printf("Client%d and teller %d\n",clientsOfTheatre[clientNumber].id, idleTeller);
       tellersOfTheatre[idleTeller - 1].clientNum = clientsOfTheatre[clientNumber].id; // client and teller at service.
       tellersOfTheatre[idleTeller - 1].status = busy; // make the teller busy
       numberOfDoneClient++;
-      // tellersOfTheatre[idleTeller - 1].status = idle;
       break;
     }
   }
   m1.unlock();
   msleep(clientsOfTheatre[clientNumber].serviceTime*10);
   
-  // printf("%s is finished\n",clientsOfTheatre[clientNumber].name.c_str());
   pthread_exit(NULL);
 }
 
+
+// Finds the idle teller, otherwise returns 0.
 int findIdleTeller() {
   int idleTeller = 0;
   if (tellersOfTheatre[0].status == idle){
@@ -278,10 +290,11 @@ int findIdleTeller() {
   return idleTeller;
 }
 
+// Finds the empty seat number, otherwise returns -1.
 int findSeat(int requestedSeat) {
   int emptySeatNumber = -1;
   
-  if (theater == "OdaTiyatrosu") { // OdaTiyatrosu, UskudarStudyoSahne, and KucukSahne
+  if (theater == "OdaTiyatrosu") { 
     if (theatreSeatStatus[requestedSeat - 1] == 0 && requestedSeat < ODA_TIYATROSU) {  // Checks if requested seat is empty.
       theatreSeatStatus[requestedSeat - 1] = 1;  // it is reserved.
       soldTicket++;
@@ -335,7 +348,7 @@ int findSeat(int requestedSeat) {
   return emptySeatNumber;
 }
 
-
+// Splits the string with given delimeter and returns the vector.
 vector<string> split(const string str, char delim)
 {
   vector<string> result;
@@ -349,6 +362,7 @@ vector<string> split(const string str, char delim)
   return result;
 }
 
+// Write the message to output file. 
 void writeFile(string message) {
   
   m3.lock();
