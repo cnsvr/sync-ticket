@@ -10,4 +10,4 @@
 - [x] Define a function finds empty seat
 - [x] Implement a lock system for critical section that is about same teller for a client
 - [x] Implement a lock system for critical section that is about same selected seat number for a teller
-- [ ] Test 
+- [x] Test 
