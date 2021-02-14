@@ -173,7 +173,7 @@ int main(int argc, char *argv[]){
     pthread_join(tellers[i],NULL);
   }
   
-  writeFile("All clients received service.");
+  writeFile("All clients received service.\n");
   
   return 0;
   
