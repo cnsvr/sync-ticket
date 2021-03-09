@@ -34,7 +34,7 @@ All the information required for the simulation to progress is in the configurat
  * The rest of the configuration file represents the clients. The order of the lines should be aligned with the order of client thread creation. A particular line includes the following information about a client that arrives for a reservation: <client name, arrival time, service time, seat number>. The format of the configuration file is fixed. For example, there will be no white-spaces within lines, and there will be always NumberOfClients+2 lines in the
 configuration file.
 
-### Client-Teller Threads
+### Client-Teller Threads
 When the program starts executing, the clients start arriving. The tellers are created in advance, and they are ready before the clients’ arrival.
 
  * The main thread should create the client threads sequentially. In other words, the client threads are created one by one, without any waiting time in between. However, after creating a client thread, the client should sleep (or wait) until his/her arrival time.
@@ -44,10 +44,9 @@ When the program starts executing, the clients start arriving. The tellers are c
  * The main thread waits until no clients are left to be served.
  * The representation of the seats or the variable type is up to you, there is no restriction for
 this part. Note that the seat number starts from 1, you should not create Seat 0.
- * You should avoid implementing the whole program as a single critical section. In order not to restrict the functionality of the program, different critical sections should be implemented as it should be. Of course, it is possible to implement the whole program as a single critical section, but it does not provide the necessary functionality. So this type of implementation
-is forbidden.
+ * You should avoid implementing the whole program as a single critical section. In order not to restrict the functionality of the program, different critical sections should be implemented as it should be. Of course, it is possible to implement the whole program as a single critical section, but it does not provide the necessary functionality. So this type of implementation is forbidden.
 
-### Example Scenarios
+### Example Scenarios
 Some example scenarios are listed below:
  * **Example case 1:** Suppose that Alice arrives at the theater hall with an arrival time of 10 milliseconds, service time of 5 milliseconds, and a request for Seat 23. After waiting for 10 milliseconds in the hall, she goes to the ticket office and gets in the line. Let’s say she is the first client in the queue, thus, makes her request from the first unoccupied teller immediately, which is Teller A. Teller A checks Seat 23’s availability, and if it is available, and there is no critical section issue, Teller A marks Seat 23 as reserved by Alice. Then, Teller A sleeps for 5 milliseconds, which also makes Alice sleep because she is being served by Teller A. Finally, Teller A prints her ticket as <ins>**Alice requests seat 23, reserves seat 23. Signed by Teller A.**</ins> Note that, ticket in-
 formation should be logged to the output file.
@@ -56,3 +55,23 @@ formation should be logged to the output file.
  * Example case 4: Suppose that Ron arrives at the line and goes to Teller C to request Seat 23. Teller C cannot reserve seat 23 since it is already reserved by Alice. Thus, Teller C reserves Seat 1 for Ron, since it is the available seat with the lowest number. Ron gets the ticket as <ins>**Ron requests seat 23, reserves seat 1. Signed by Teller C.**</ins>
  * Example case 5: Suppose that Hermione123 arrives at the line and goes to Teller A to request Seat 2. Teller A checks the seats and cannot find an available one. Teller A prints a message as <ins>**Hermione123 requests seat 2, reserves None. Signed by Teller A.**</ins>
  * Example Case 6: Suppose that Jim’s arrival time is 15, and Pam’s arrival time is 20. Jim and Pam enter the theater hall and sleep 15 and 20 milliseconds respectively. After 15 milliseconds, Jim goes to the ticket office and after 5 milliseconds Pam also goes to the ticket office. So, both threads are created immediately but they should wait for some time before their executions.
+
+### Logging of Operations
+
+During the reservation and progress of the program, you should log the reservations to an external file. The path for the output file will be given as an argument to your executable.
+
+ * Once the system starts, Welcome to the Sync-Ticket! should be written by the main thread of the program to the output file.
+ * When teller threads are created, they log their names as follows: Teller A has arrived., Teller B has arrived., and Teller C has arrived..
+ * After completing a reservation, teller threads log the ticket details to the output file as follows: <X> requests seat <Y>, reserves <Y/Z/None>. Signed by Teller <A/B/C>.
+ * The program should continue to operate until all clients received service. The main thread
+should write All clients received service. to the output file as the last line.
+ * Pay attention to the synchronization while writing to the same file.
+
+# How to Run
+
+Your code must read the path of the input and output files from the command line. You should create a a Makefile to create the executable (cmake files are not accepted). The name of the executable should be simulation.o. We will run your code as follows:
+
+```bash
+make
+./simulation.o configuration_path output_path
+```
